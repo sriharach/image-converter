@@ -11,22 +11,25 @@ const App = () => {
   const [filePreview, setFilesPreview] = useState<
     { name: string; link: Blob | null }[]
   >([])
+  const [constType, setConstType] = useState('')
 
   const handleChangeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploader = [...uploadFiles],
       preview = [...filePreview]
     const selectFiles: File[] = Array.prototype.slice.call(e.target.files)
 
-    selectFiles.some((file) => {
+    selectFiles.forEach((file) => {
       if (
         uploader.findIndex((f) => f.name === file.name) === -1 &&
         preview.findIndex((f) => f.name === file.name) === -1
       ) {
-        uploader.push(file)
-        preview.push({
-          name: file.name,
-          link: null,
-        })
+        if (uploader.length != 10 && preview.length != 10) {
+          uploader.push(file)
+          preview.push({
+            name: file.name,
+            link: null,
+          })
+        }
       }
     })
 
@@ -88,13 +91,18 @@ const App = () => {
           }
         })
       }
-
-      for (let index = 0; index < uploadFiles.length; index++) {
-        const file = uploadFiles[index]
-        const converted = convertImageType(file, `image/${type_image}`)
-        temarr.push(converted)
+      const isLink = filePreview.find((d) => !d.link)
+      if (isLink) {
+        setConstType(type_image)
+        for (let index = 0; index < uploadFiles.length; index++) {
+          const file = uploadFiles[index]
+          const converted = convertImageType(file, `image/${type_image}`)
+          temarr.push(converted)
+        }
+        setFilesPreview(await Promise.all(temarr))
+      } else {
+        setFilesPreview((files) => files)
       }
-      setFilesPreview(await Promise.all(temarr))
     }
   }
 
@@ -102,7 +110,7 @@ const App = () => {
     const url = window.URL.createObjectURL(data)
     const tempLink = document.createElement('a')
     tempLink.href = url
-    tempLink.setAttribute('download', `${name.split('.')[0]}.${type_image}`)
+    tempLink.setAttribute('download', `${name.split('.')[0]}.${constType}`)
     tempLink.click()
   }
 
@@ -119,6 +127,24 @@ const App = () => {
 
           {filePreview !== null ? (
             <Fragment>
+              <Button
+                size='small'
+                color='error'
+                sx={{
+                  display: filePreview.length > 1 ? 'block' : 'none',
+                  textTransform: 'none',
+                  width: '130px',
+                  justifySelf: 'center',
+                }}
+                variant='outlined'
+                onClick={() => {
+                  setUploadFiles([])
+                  setFilesPreview([])
+                  setConstType('')
+                }}
+              >
+                <span>Remove All</span>
+              </Button>
               <Box
                 sx={{
                   maxHeight: '378px',
@@ -136,12 +162,14 @@ const App = () => {
                         backgroundColor: 'secondary.light',
                         padding: '0.8rem',
                         borderRadius: '0.4rem',
-                        boxShadow: 'rgba(149, 157, 165, 0.2) 0px 8px 24px;',
+                        boxShadow:
+                          'rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;',
                       }}
                     >
                       <Box
                         sx={{
                           display: { md: 'grid', sm: 'flex' },
+                          alignItems: 'center',
                           gridTemplateColumns: {
                             md: 'repeat(3, 300px)',
                             sm: 'none',
@@ -187,6 +215,7 @@ const App = () => {
                 }}
               >
                 <MemoButtonUpload
+                  disable={filePreview.length >= 10}
                   onChange={handleChangeFile}
                   text='Upload more files'
                 />
@@ -217,15 +246,18 @@ interface IButtonUpload {
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
   style?: React.CSSProperties
   text?: string
+  disable?: boolean
 }
 
 const MemoButtonUpload = memo(function ButtonUpload({
   onChange,
   style,
   text = 'Upload',
+  disable,
 }: IButtonUpload) {
   return (
     <Button
+      disabled={disable}
       sx={{
         ...style,
         height: '60px',
