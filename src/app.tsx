@@ -4,6 +4,7 @@ import { Box, Button, IconButton, Stack } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useTypeImage } from './zustand/type-converter'
+import LoadingButton from '@mui/lab/LoadingButton'
 
 const App = () => {
   const { type_image } = useTypeImage((state) => state)
@@ -12,6 +13,7 @@ const App = () => {
     { name: string; link: Blob | null }[]
   >([])
   const [constType, setConstType] = useState('')
+  const [loaderConvert, setLoaderConvert] = useState(false)
 
   const handleChangeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploader = [...uploadFiles],
@@ -30,6 +32,8 @@ const App = () => {
             link: null,
           })
         }
+      } else {
+        alert('Files upload duplicate.')
       }
     })
 
@@ -46,51 +50,53 @@ const App = () => {
   }
 
   const modifyImage = async () => {
+    setLoaderConvert(true)
+
+    function convertImageType(inputImage: File, outputFormat: string) {
+      return new Promise<{
+        name: string
+        link: Blob
+      }>((resolve, reject) => {
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        const img = new Image()
+        if (ctx) {
+          img.onload = () => {
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx.drawImage(img, 0, 0)
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  const found = uploadFiles.find(
+                    (f) => f.name === inputImage.name,
+                  )
+                  if (found) {
+                    resolve({
+                      name: found.name,
+                      link: blob,
+                    })
+                  }
+                }
+              },
+              outputFormat,
+              0.8,
+            )
+          }
+          img.onerror = (err) => {
+            reject(err)
+          }
+          img.src = URL.createObjectURL(inputImage)
+        }
+      })
+    }
+
     if (uploadFiles.length > 0) {
       const temarr: Promise<{
         name: string
         link: Blob
       }>[] = []
 
-      // eslint-disable-next-line no-inner-declarations
-      function convertImageType(inputImage: File, outputFormat: string) {
-        return new Promise<{
-          name: string
-          link: Blob
-        }>((resolve, reject) => {
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          const img = new Image()
-          if (ctx) {
-            img.onload = () => {
-              canvas.width = img.width
-              canvas.height = img.height
-              ctx.drawImage(img, 0, 0)
-              canvas.toBlob(
-                (blob) => {
-                  if (blob) {
-                    const found = uploadFiles.find(
-                      (f) => f.name === inputImage.name,
-                    )
-                    if (found) {
-                      resolve({
-                        name: found.name,
-                        link: blob,
-                      })
-                    }
-                  }
-                },
-                outputFormat,
-                0.8,
-              )
-            }
-            img.onerror = (err) => {
-              reject(err)
-            }
-            img.src = URL.createObjectURL(inputImage)
-          }
-        })
-      }
       const isLink = filePreview.find((d) => !d.link)
       if (isLink) {
         setConstType(type_image)
@@ -99,11 +105,11 @@ const App = () => {
           const converted = convertImageType(file, `image/${type_image}`)
           temarr.push(converted)
         }
-        setFilesPreview(await Promise.all(temarr))
-      } else {
-        setFilesPreview((files) => files)
-      }
+        const temp = await Promise.all(temarr)
+        setFilesPreview(temp)
+      } else setFilesPreview((files) => files)
     }
+    setLoaderConvert(false)
   }
 
   const loadFile = (data: Blob, name: string) => {
@@ -219,7 +225,8 @@ const App = () => {
                   onChange={handleChangeFile}
                   text='Upload more files'
                 />
-                <Button
+                <LoadingButton
+                  loading={loaderConvert}
                   sx={{
                     textTransform: 'none',
                     width: '186px',
@@ -230,7 +237,7 @@ const App = () => {
                   onClick={modifyImage}
                 >
                   <span>Convert Files</span>
-                </Button>
+                </LoadingButton>
               </Box>
             </Fragment>
           ) : null}
