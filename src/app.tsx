@@ -1,5 +1,5 @@
-import React, { useState, memo, Fragment } from 'react'
-import Content from './components/layouts/content'
+import React, { useState, Fragment, useCallback, memo } from 'react'
+import Layout from './components/layouts/layout'
 import { Box, Button, IconButton, Stack } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -15,31 +15,36 @@ const App = () => {
   const [constType, setConstType] = useState('')
   const [loaderConvert, setLoaderConvert] = useState(false)
 
-  const handleChangeFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploader = [...uploadFiles],
-      preview = [...filePreview]
-    const selectFiles: File[] = Array.prototype.slice.call(e.target.files)
+  const handleChangeFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const uploader = [...uploadFiles],
+        preview = [...filePreview]
+      const selectFiles: File[] = Array.prototype.slice.call(e.target.files)
 
-    selectFiles.forEach((file) => {
-      if (
-        uploader.findIndex((f) => f.name === file.name) === -1 &&
-        preview.findIndex((f) => f.name === file.name) === -1
-      ) {
-        if (uploader.length != 10 && preview.length != 10) {
-          uploader.push(file)
-          preview.push({
-            name: file.name,
-            link: null,
-          })
+      for (let i = 0; i < selectFiles.length; i++) {
+        const file = selectFiles[i]
+        if (
+          uploader.findIndex((f) => f.name === file.name) === -1 &&
+          preview.findIndex((f) => f.name === file.name) === -1
+        ) {
+          if (uploader.length != 10 && preview.length != 10) {
+            uploader.push(file)
+            preview.push({
+              name: file.name,
+              link: null,
+            })
+          }
+        } else {
+          alert('Files upload duplicate.')
+          break
         }
-      } else {
-        alert('Files upload duplicate.')
       }
-    })
 
-    setUploadFiles(uploader)
-    setFilesPreview(preview)
-  }
+      setUploadFiles(uploader)
+      setFilesPreview(preview)
+    },
+    [uploadFiles, filePreview],
+  )
 
   const handleRemoveFile = (_name: string) => {
     const isAmountFile = uploadFiles.length > 0 && filePreview.length > 0
@@ -49,7 +54,7 @@ const App = () => {
     }
   }
 
-  const modifyImage = async () => {
+  const modifyImage = useCallback(async () => {
     setLoaderConvert(true)
 
     function convertImageType(inputImage: File, outputFormat: string) {
@@ -90,27 +95,36 @@ const App = () => {
         }
       })
     }
+    const previewSpread = [...filePreview]
+    if (uploadFiles.length > 0 && filePreview.length > 0) {
+      const previewsFilterUnlink = filePreview.filter((d) => !d.link)
 
-    if (uploadFiles.length > 0) {
-      const temarr: Promise<{
+      const mapConverted: Promise<{
         name: string
         link: Blob
       }>[] = []
 
-      const isLink = filePreview.find((d) => !d.link)
-      if (isLink) {
-        setConstType(type_image)
-        for (let index = 0; index < uploadFiles.length; index++) {
-          const file = uploadFiles[index]
-          const converted = convertImageType(file, `image/${type_image}`)
-          temarr.push(converted)
+      for (let i = 0; i < previewsFilterUnlink.length; i++) {
+        const preview = previewsFilterUnlink[i]
+        if (!preview.link && preview.link === null) {
+          const file = uploadFiles.find((f) => f.name === preview.name)
+          if (file) {
+            const converted = convertImageType(file, `image/${type_image}`)
+            mapConverted.push(converted)
+          }
         }
-        const temp = await Promise.all(temarr)
-        setFilesPreview(temp)
+      }
+
+      if (mapConverted.length > 0) {
+        const resolveConverted = [
+          ...previewSpread,
+          ...(await Promise.all(mapConverted)),
+        ].filter((a) => a.link)
+        setFilesPreview(resolveConverted)
       } else setFilesPreview((files) => files)
     }
     setLoaderConvert(false)
-  }
+  }, [filePreview])
 
   const loadFile = (data: Blob, name: string) => {
     const url = window.URL.createObjectURL(data)
@@ -122,17 +136,16 @@ const App = () => {
 
   return (
     <>
-      <Content>
-        <Stack spacing={3}>
+      <Layout>
+        {uploadFiles.length === 0 ? (
           <Box mt={4} sx={{ display: 'flex', justifyContent: 'center' }}>
-            <MemoButtonUpload
-              style={{ display: uploadFiles.length ? 'none' : 'flex' }}
-              onChange={handleChangeFile}
-            />
+            <MemoButtonUpload onChange={handleChangeFile} />
           </Box>
+        ) : null}
 
-          {filePreview !== null ? (
-            <Fragment>
+        {filePreview !== null ? (
+          <Fragment>
+            <Stack spacing={3} mt={4}>
               <Button
                 size='small'
                 color='error'
@@ -226,6 +239,7 @@ const App = () => {
                   text='Upload more files'
                 />
                 <LoadingButton
+                  disabled={filePreview.every((c) => c.link)}
                   loading={loaderConvert}
                   sx={{
                     textTransform: 'none',
@@ -239,10 +253,10 @@ const App = () => {
                   <span>Convert Files</span>
                 </LoadingButton>
               </Box>
-            </Fragment>
-          ) : null}
-        </Stack>
-      </Content>
+            </Stack>
+          </Fragment>
+        ) : null}
+      </Layout>
     </>
   )
 }
