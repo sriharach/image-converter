@@ -9,9 +9,7 @@ export default defineConfig({
     react({
       tsDecorators: true,
     }),
-    eslint({
-      include: ['**/*.ts', '**/*.tsx'],
-    }),
+   
   ],
   server: {
     port: 3000,

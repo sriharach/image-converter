@@ -37,9 +37,12 @@ const App = () => {
   })
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setHeader(
-      newValue === 0 ? EHeaderStoreState.IMAGE : EHeaderStoreState.VIDEO,
-    )
+    const titleKey = [
+      EHeaderStoreState.IMAGE,
+      EHeaderStoreState.VIDEO,
+      EHeaderStoreState.FILE,
+    ]
+    setHeader(`${titleKey[newValue]}`)
     setValue(newValue)
   }
 
@@ -64,6 +67,11 @@ const App = () => {
             label='Video Converter'
             {...a11yProps(2)}
           />
+          <Tab
+            sx={{ textTransform: 'none' }}
+            label='File Converter'
+            {...a11yProps(3)}
+          />
         </Tabs>
       </Box>
       <CustomTabPanelMemo value={value} index={0}>
@@ -71,6 +79,9 @@ const App = () => {
       </CustomTabPanelMemo>
       <CustomTabPanelMemo value={value} index={1}>
         <></>
+      </CustomTabPanelMemo>
+      <CustomTabPanelMemo value={value} index={2}>
+        <ImageConvert />
       </CustomTabPanelMemo>
     </Layout>
   )

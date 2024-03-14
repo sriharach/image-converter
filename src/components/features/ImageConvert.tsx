@@ -1,12 +1,23 @@
-import React, { useState, Fragment, useCallback, memo } from 'react'
+import React, { useState, Fragment, useCallback } from 'react'
 import { Box, Button, IconButton, Stack } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import DeleteIcon from '@mui/icons-material/Delete'
 import LoadingButton from '@mui/lab/LoadingButton'
-import { useTypeImage } from '@/zustand/type-converter'
+import { useTypeName } from '@/zustand/type-converter'
+import ButtonUpload from '../common/ButtonUpload'
+import convertImageType from '@/libs/convertImageType'
+import Pspdfkit from 'pspdfkit'
+import { EHeaderStoreState, useHeaderStore } from '@/zustand/header'
+
+// Pspdfkit.load({
+//   container: '#pspdfkit',
+//   document:
+// })
 
 const ImageConvert = () => {
-  const { type_image } = useTypeImage((state) => state)
+  const { type_convert_name } = useTypeName((state) => state)
+  const { text: titleKeyname } = useHeaderStore((state) => state)
+
   const [uploadFiles, setUploadFiles] = useState<File[]>([])
   const [filePreview, setFilesPreview] = useState<
     { name: string; link: Blob | null }[]
@@ -53,47 +64,9 @@ const ImageConvert = () => {
     }
   }
 
-  const modifyImage = useCallback(async () => {
+  const modityFile = useCallback(async () => {
     setLoaderConvert(true)
 
-    function convertImageType(inputImage: File, outputFormat: string) {
-      return new Promise<{
-        name: string
-        link: Blob
-      }>((resolve, reject) => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        const img = new Image()
-        if (ctx) {
-          img.onload = () => {
-            canvas.width = img.width
-            canvas.height = img.height
-            ctx.drawImage(img, 0, 0)
-            canvas.toBlob(
-              (blob) => {
-                if (blob) {
-                  const found = uploadFiles.find(
-                    (f) => f.name === inputImage.name,
-                  )
-                  if (found) {
-                    resolve({
-                      name: found.name,
-                      link: blob,
-                    })
-                  }
-                }
-              },
-              outputFormat,
-              0.8,
-            )
-          }
-          img.onerror = (err) => {
-            reject(err)
-          }
-          img.src = URL.createObjectURL(inputImage)
-        }
-      })
-    }
     const previewSpread = [...filePreview]
     if (uploadFiles.length > 0 && filePreview.length > 0) {
       const previewsFilterUnlink = filePreview.filter((d) => !d.link)
@@ -108,8 +81,42 @@ const ImageConvert = () => {
         if (!preview.link && preview.link === null) {
           const file = uploadFiles.find((f) => f.name === preview.name)
           if (file) {
-            const converted = convertImageType(file, `image/${type_image}`)
-            mapConverted.push(converted)
+            switch (titleKeyname) {
+              case EHeaderStoreState.IMAGE:
+                {
+                  const converted = convertImageType(
+                    file,
+                    `image/${type_convert_name}`,
+                    uploadFiles,
+                  )
+                  mapConverted.push(converted)
+                }
+                break
+              case EHeaderStoreState.FILE:
+                {
+                  const blob = new Blob(
+                    [new Uint8Array(await file.arrayBuffer())],
+                    { type: 'application/pdf' },
+                  )
+                  mapConverted.push(
+                    new Promise((resolve) => {
+                      const findName = uploadFiles.find(
+                        (f) => f.name === file.name,
+                      )
+                      if (findName) {
+                        resolve({
+                          name: findName.name,
+                          link: blob,
+                        })
+                      }
+                    }),
+                  )
+                }
+                break
+
+              default:
+                break
+            }
           }
         }
       }
@@ -136,7 +143,11 @@ const ImageConvert = () => {
     <>
       {uploadFiles.length === 0 ? (
         <Box mt={4} sx={{ display: 'flex', justifyContent: 'center' }}>
-          <MemoButtonUpload onChange={handleChangeFile} />
+          <ButtonUpload
+            accept={titleKeyname === EHeaderStoreState.FILE ? '' : 'image/*'}
+            startIcon={<UploadFileIcon />}
+            onChange={handleChangeFile}
+          />
         </Box>
       ) : null}
 
@@ -195,7 +206,7 @@ const ImageConvert = () => {
                     >
                       <Box component={'span'}>{file.name}</Box>
                       <Box component={'span'} textAlign={'center'}>
-                        {`Convert to: ${type_image.toUpperCase()}`}
+                        {`Convert to: ${type_convert_name.toUpperCase()}`}
                       </Box>
                       {file.link !== null && (
                         <Button
@@ -228,8 +239,8 @@ const ImageConvert = () => {
                 justifyContent: 'space-between',
               }}
             >
-              <MemoButtonUpload
-                disable={filePreview.length >= 10}
+              <ButtonUpload
+                disabled={filePreview.length >= 10}
                 onChange={handleChangeFile}
                 text='Upload more files'
               />
@@ -243,7 +254,7 @@ const ImageConvert = () => {
                   height: '60px',
                 }}
                 variant='contained'
-                onClick={modifyImage}
+                onClick={modityFile}
               >
                 <span>Convert Files</span>
               </LoadingButton>
@@ -256,36 +267,3 @@ const ImageConvert = () => {
 }
 
 export default ImageConvert
-
-interface IButtonUpload {
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  style?: React.CSSProperties
-  text?: string
-  disable?: boolean
-}
-
-const MemoButtonUpload = memo(function ButtonUpload({
-  onChange,
-  style,
-  text = 'Upload',
-  disable,
-}: IButtonUpload) {
-  return (
-    <Button
-      disabled={disable}
-      sx={{
-        ...style,
-        height: '60px',
-        width: '248px',
-        textTransform: 'none',
-        fontSize: 18,
-      }}
-      variant='outlined'
-      component='label'
-      startIcon={<UploadFileIcon />}
-    >
-      <span>{text}</span>
-      <input hidden accept='image/*' multiple type='file' onChange={onChange} />
-    </Button>
-  )
-})

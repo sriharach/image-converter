@@ -1,6 +1,6 @@
 import { Container, Box, Stack } from '@mui/material'
 import React from 'react'
-import SelectTypeIMG from '../SelectTypeIMG'
+import SelectTypeConvertName from '../SelectTypeConvertName'
 import { useHeaderStore } from '@/zustand/header'
 
 const Header = () => {
@@ -24,13 +24,13 @@ const Header = () => {
         >
           <Box>
             <Box component={'h1'} fontWeight={600}>
-              {text}
+              {text + ' converter'}
             </Box>
           </Box>
           <Stack spacing={2}>
             <Box fontSize={18}>Convert type to</Box>
             <Box sx={{ textAlign: 'center' }}>
-              <SelectTypeIMG />
+              <SelectTypeConvertName />
             </Box>
           </Stack>
         </Box>

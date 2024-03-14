@@ -2,13 +2,14 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
 export enum EHeaderStoreState {
-  IMAGE = 'Image converter',
-  VIDEO = 'Video converter',
+  IMAGE = 'Image',
+  VIDEO = 'Video',
+  FILE = 'Flie'
 }
 
 interface HeaderStoreState {
-  text: EHeaderStoreState
-  setHeader: (k: EHeaderStoreState) => void
+  text: string
+  setHeader: (k: string) => void
 }
 
 export const useHeaderStore = create(
